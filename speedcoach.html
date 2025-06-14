@@ -1,0 +1,1501 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpeedCoach Roei Analyse</title>
+    <style>
+        :root {
+            --primary: #1e40af;
+            --secondary: #ea580c;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 1rem;
+            background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+            color: var(--gray-800);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%);
+            color: white;
+            padding: 2rem 1.5rem 1.5rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0 0 0.5rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .upload-section {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .upload-area {
+            border: 2px dashed var(--gray-300);
+            border-radius: 12px;
+            padding: 2rem 1rem;
+            text-align: center;
+            background: var(--gray-50);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .upload-area:hover {
+            border-color: var(--primary);
+            background: #eff6ff;
+        }
+
+        .upload-area.dragover {
+            border-color: var(--primary);
+            background: #dbeafe;
+        }
+
+        .upload-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+
+        .upload-text {
+            color: var(--gray-600);
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        .file-input {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-block;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background: #1e3a8a;
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: var(--gray-500);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-600);
+        }
+
+        .loading {
+            padding: 2rem;
+            text-align: center;
+            color: var(--gray-500);
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid var(--gray-200);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .results {
+            padding: 1.5rem;
+        }
+
+        .stat-group {
+            margin-bottom: 1.5rem;
+            background: var(--gray-50);
+            border-radius: 12px;
+            padding: 1rem;
+            border-left: 4px solid var(--primary);
+        }
+
+        .stat-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .stat-group.performance {
+            border-left-color: var(--success);
+        }
+
+        .stat-group.technique {
+            border-left-color: var(--primary);
+        }
+
+        .stat-group.physiology {
+            border-left-color: var(--danger);
+        }
+
+        .stat-group.environment {
+            border-left-color: var(--warning);
+        }
+
+        .group-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 0 0 0.75rem;
+            color: var(--gray-700);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .group-icon {
+            font-size: 1.2rem;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+            font-weight: 500;
+            flex: 1;
+        }
+
+        .stat-value {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--gray-800);
+            text-align: right;
+            max-width: 60%;
+            word-break: break-word;
+        }
+
+        .stat-value.highlight {
+            color: var(--primary);
+        }
+
+        .stat-context {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            margin-top: 0.25rem;
+            font-style: italic;
+        }
+
+        .weather-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .weather-badge {
+            background: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: var(--gray-600);
+            border: 1px solid var(--gray-200);
+        }
+
+        .wind-effect {
+            font-size: 1rem;
+            margin-top: 0.25rem;
+        }
+
+        .stroke-table-container {
+            margin-top: 1.5rem;
+            overflow-x: auto;
+            border-radius: 8px;
+            border: 1px solid var(--gray-200);
+        }
+
+        .stroke-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+            background: white;
+        }
+
+        .stroke-table th {
+            background: var(--gray-100);
+            padding: 0.5rem 0.25rem;
+            text-align: right;
+            font-weight: 600;
+            color: var(--gray-700);
+            border-bottom: 2px solid var(--gray-200);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .stroke-table td {
+            padding: 0.4rem 0.25rem;
+            text-align: right;
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .stroke-table tr:hover {
+            background: var(--gray-50);
+        }
+
+        .highlight-min {
+            background: #dbeafe;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .highlight-max {
+            background: #fed7aa;
+            color: var(--secondary);
+            font-weight: 600;
+        }
+
+        .highlight-row-value {
+            font-weight: 600;
+            color: var(--gray-700);
+        }
+
+        .download-section {
+            padding: 1.5rem;
+            border-top: 1px solid var(--gray-200);
+            text-align: center;
+        }
+
+        .error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: var(--danger);
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem;
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 0.5rem;
+            }
+            
+            .container {
+                border-radius: 0;
+                margin: 0 -0.5rem;
+            }
+            
+            .header {
+                padding: 1.5rem 1rem 1rem;
+            }
+            
+            .upload-section,
+            .results,
+            .download-section {
+                padding: 1rem;
+            }
+            
+            .stat-group {
+                padding: 0.75rem;
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚣‍♀️ SpeedCoach Analyse</h1>
+            <p>Upload je CSV voor directe prestatie-analyse</p>
+        </div>
+
+        <div class="upload-section" id="upload-section">
+            <div class="upload-area" id="upload-area">
+                <span class="upload-icon">📊</span>
+                <div class="upload-text">
+                    <strong>Sleep je SpeedCoach CSV hier</strong><br>
+                    of klik om bestand te selecteren
+                </div>
+                <input type="file" accept=".csv" class="file-input" id="file-input">
+                <button class="btn">Kies bestand</button>
+            </div>
+        </div>
+
+        <div class="loading hidden" id="loading">
+            <div class="spinner"></div>
+            <p>Analyseren van je roeidata...<br><small style="color: var(--gray-400);">Weerdata wordt indien mogelijk toegevoegd</small></p>
+        </div>
+
+        <div class="results hidden" id="results">
+            <div id="statistics"></div>
+            <div id="stroke-table-container"></div>
+        </div>
+
+        <div class="download-section hidden" id="download-section">
+            <button class="btn" id="download-btn">Download Analyse (Markdown)</button>
+            <button class="btn btn-secondary" id="reset-btn" style="margin-left: 0.5rem;">Nieuw Bestand</button>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const CONFIG = {
+            MOVING_AVERAGE_WINDOW: 5,
+            MIN_DISTANCE_THRESHOLD: 100,
+            SPLIT_MIN_SECONDS: 60,
+            SPLIT_MAX_SECONDS: 180
+        };
+
+        // Global state - simplified for single file
+        let currentData = null;
+        let currentAnalysis = null;
+
+        // Utility functions
+        const utils = {
+            mean: (arr) => {
+                const nums = arr.filter(x => !isNaN(x)).map(Number);
+                if (!nums.length) return null;
+                return nums.reduce((a, b) => a + b, 0) / nums.length;
+            },
+
+            stddev: (arr) => {
+                const nums = arr.filter(x => !isNaN(x)).map(Number);
+                if (nums.length < 2) return null;
+                const m = utils.mean(nums);
+                const variance = nums.reduce((acc, v) => acc + Math.pow(v - m, 2), 0) / (nums.length - 1);
+                return Math.sqrt(variance);
+            },
+
+            movingAverage: (arr, window) => {
+                if (!arr || arr.length < window) return arr;
+                return arr.map((_, i) => {
+                    const start = Math.max(0, i - Math.floor(window / 2));
+                    const end = Math.min(arr.length, i + Math.ceil(window / 2));
+                    const slice = arr.slice(start, end).filter(x => x !== null && !isNaN(x));
+                    return slice.length > 0 ? slice.reduce((a, b) => a + b, 0) / slice.length : null;
+                });
+            },
+
+            formatTime: (seconds) => {
+                if (seconds == null || isNaN(seconds)) return '';
+                const m = Math.floor(seconds / 60);
+                const s = (seconds % 60).toFixed(1).padStart(4, '0');
+                return `${m}:${s}`;
+            },
+
+            formatSplitSD: (sd) => {
+                if (sd == null || isNaN(sd)) return '';
+                return sd < 60 ? `${sd.toFixed(1)}s` : utils.formatTime(sd);
+            },
+
+            timeStringToSeconds: (str) => {
+                if (!str) return 0;
+                const m = str.match(/(\d+):(\d+):(\d+\.?\d*)/);
+                if (!m) return 0;
+                return parseInt(m[1]) * 3600 + parseInt(m[2]) * 60 + parseFloat(m[3]);
+            },
+
+            parseDate: (dateStr) => {
+                let m = dateStr.match(/(\d{2})\/(\d{2})\/(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/);
+                if (m) {
+                    return new Date(Number(m[3]), Number(m[1]) - 1, Number(m[2]), Number(m[4]), Number(m[5]), Number(m[6]));
+                }
+                return new Date(dateStr);
+            },
+
+            msToBft: (ms) => {
+                const v = Number(ms);
+                if (isNaN(v)) return '-';
+                const thresholds = [0.3, 1.6, 3.4, 5.5, 8.0, 10.8, 13.9, 17.2, 20.8, 24.5, 28.5, 32.7];
+                return thresholds.findIndex(t => v < t);
+            },
+
+            calculateBearing: (lat1, lon1, lat2, lon2) => {
+                if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+                const toRad = deg => deg * Math.PI / 180;
+                const toDeg = rad => rad * 180 / Math.PI;
+                const φ1 = toRad(parseFloat(lat1));
+                const φ2 = toRad(parseFloat(lat2));
+                const Δλ = toRad(parseFloat(lon2) - parseFloat(lon1));
+                const y = Math.sin(Δλ) * Math.cos(φ2);
+                const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+                let θ = Math.atan2(y, x);
+                θ = toDeg(θ);
+                return (θ + 360) % 360;
+            }
+        };
+
+        // CSV parsing functions
+        const csvParser = {
+            parseCSVSections: (text) => {
+                const perStrokeStart = text.indexOf('Per-Stroke Data:');
+                if (perStrokeStart === -1) return null;
+
+                const perStrokeLines = text.slice(perStrokeStart).split(/\r?\n/);
+
+                let i = 1, header1 = null, header2 = null;
+                while (i < perStrokeLines.length && (!header1 || !header2)) {
+                    if (perStrokeLines[i].trim() !== '') {
+                        if (!header1) header1 = perStrokeLines[i].split(',').map(h => h.trim());
+                        else if (!header2) header2 = perStrokeLines[i].split(',').map(h => h.trim());
+                    }
+                    i++;
+                }
+                if (!header1 || !header2) return null;
+
+                const headers = header1.map((h, idx) => h + (header2[idx] ? ' ' + header2[idx] : ''));
+
+                const data = [];
+                for (; i < perStrokeLines.length; i++) {
+                    if (perStrokeLines[i].trim() === '') continue;
+                    const row = perStrokeLines[i].split(',');
+                    if (row.length < 5 || row[0].trim() === '') continue;
+                    data.push(Object.fromEntries(headers.map((h, k) => [h, row[k] ? row[k].trim() : ''])));
+                }
+
+                return data;
+            },
+
+            parseStartTime: (text) => {
+                const match = text.match(/Start Time:,\s*(\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}:\d{2})/);
+                return match ? match[1] : null;
+            },
+
+            parseMeters: (data) => {
+                if (!data || data.length === 0) return [];
+                const key = "Distance (GPS) (Meters)";
+                if (!data[0][key]) return [];
+                return data.map(row => parseFloat(row[key].replace(',', '.'))).filter(x => !isNaN(x));
+            },
+
+            parseSeries: (data, seriesKey) => {
+                const keyMap = {
+                    "SPM": "Stroke Rate (SPM)",
+                    "Bootsnelheid": "Speed (GPS) (M/S)",
+                    "Haallengte": "Distance/Stroke (GPS) (Meters)",
+                    "Hartslag": "Heart Rate (BPM)"
+                };
+                
+                const colKey = keyMap[seriesKey];
+                if (!colKey) return [];
+                return data.map(row => {
+                    let val = row[colKey];
+                    val = parseFloat(val);
+                    return isNaN(val) ? null : val;
+                }).filter(v => v !== null);
+            }
+        };
+
+        // Analysis functions
+        const analyzer = {
+            calculateSplits: (data) => {
+                const splitKey = 'Split (GPS) (/500)';
+                return data.map(row => {
+                    const v = row[splitKey];
+                    if (!v || v === '---') return null;
+
+                    let m = v.match(/^(\d+):(\d+):(\d+\.?\d*)$/);
+                    if (m) {
+                        return parseInt(m[1]) * 3600 + parseInt(m[2]) * 60 + parseFloat(m[3]);
+                    }
+                    m = v.match(/^(\d+):(\d+\.?\d*)$/);
+                    if (m) {
+                        return parseInt(m[1]) * 60 + parseFloat(m[2]);
+                    }
+                    return null;
+                });
+            },
+
+            addEWpSToData: (data) => {
+                data.forEach(row => {
+                    const boatSpeed = parseFloat(row["Speed (GPS) (M/S)"]);
+                    const strokeRate = parseFloat(row["Stroke Rate (SPM)"]);
+                    if (!isNaN(boatSpeed) && !isNaN(strokeRate) && strokeRate > 0) {
+                        row.ewps = boatSpeed * Math.pow(strokeRate, -1 / 3);
+                    } else {
+                        row.ewps = null;
+                    }
+                });
+            },
+
+            getMiddleInfo: (data) => {
+                if (!data || data.length === 0) return { lat: null, lon: null };
+                const midIdx = Math.floor(data.length / 2);
+                const latKey = Object.keys(data[midIdx]).find(k => k.toLowerCase().replace(/[^a-z]/g, '').includes('gpslat'));
+                const lonKey = Object.keys(data[midIdx]).find(k => k.toLowerCase().replace(/[^a-z]/g, '').includes('gpslon'));
+                const lat = latKey ? data[midIdx][latKey] : null;
+                const lon = lonKey ? data[midIdx][lonKey] : null;
+                return { lat, lon, midIdx };
+            },
+
+            analyzeData: async (data, fileText) => {
+                analyzer.addEWpSToData(data);
+                
+                const meters = csvParser.parseMeters(data);
+                const totalDistance = meters.length > 0 ? Math.round(Math.max(...meters)) : 0;
+                
+                // Basic metrics
+                const elapsedStr = data[data.length - 1]['Elapsed Time (HH:MM:SS.tenths)'];
+                const elapsedSec = utils.timeStringToSeconds(elapsedStr);
+                const duration = utils.formatTime(elapsedSec);
+                
+                // Split calculation
+                const splitArr = analyzer.calculateSplits(data);
+                const metersArr = data.map(row => {
+                    const v = row['Distance (GPS) (Meters)'];
+                    return (!v || v === '---') ? null : parseFloat(v);
+                });
+                const startIdx = metersArr.findIndex(m => m !== null && m >= CONFIG.MIN_DISTANCE_THRESHOLD);
+                const splitValid = (startIdx !== -1) ? splitArr.slice(startIdx) : splitArr;
+                const splitFiltered = splitValid.filter(x => x !== null && !isNaN(x));
+                
+                let splitInfo = { value: 'n.v.t.', quality: 'none', meanSeconds: null };
+                if (splitFiltered.length > 0) {
+                    const splitMean = utils.mean(splitFiltered);
+                    const splitStd = utils.stddev(splitFiltered);
+                    if (splitMean !== null && splitMean >= CONFIG.SPLIT_MIN_SECONDS && splitMean <= CONFIG.SPLIT_MAX_SECONDS) {
+                        splitInfo.value = utils.formatTime(splitMean);
+                        splitInfo.stddev = splitStd;
+                        splitInfo.meanSeconds = splitMean;
+                        if (splitStd) splitInfo.value += ` (±${utils.formatSplitSD(splitStd)})`;
+                        
+                        // Quality assessment
+                        if (splitMean < 90) splitInfo.quality = 'excellent';
+                        else if (splitMean < 110) splitInfo.quality = 'good';
+                        else if (splitMean < 130) splitInfo.quality = 'moderate';
+                        else splitInfo.quality = 'beginner';
+                    }
+                }
+                
+                // Other metrics with moving average
+                const metrics = {};
+                const metricsWithMA = ['Bootsnelheid', 'Haallengte', 'SPM', 'Hartslag'];
+                
+                metricsWithMA.forEach(key => {
+                    const series = csvParser.parseSeries(data, key);
+                    if (series.length > 0) {
+                        const ma = utils.movingAverage(series, CONFIG.MOVING_AVERAGE_WINDOW);
+                        const mean = utils.mean(ma);
+                        const sd = utils.stddev(ma);
+                        if (mean !== null) {
+                            metrics[key] = { mean, sd };
+                        }
+                    }
+                });
+                
+                // EWpS
+                const ewpsArr = data.map(row => row.ewps).filter(v => v !== null && !isNaN(v));
+                if (ewpsArr.length) {
+                    metrics.EWpS = { mean: utils.mean(ewpsArr), sd: utils.stddev(ewpsArr) };
+                }
+                
+                // Max speed and location
+                let maxSpeedInfo = null;
+                const speedArr = data.map(row => {
+                    const v = row['Speed (GPS) (M/S)'];
+                    return (!v || v === '---') ? null : parseFloat(v);
+                });
+                if (speedArr.length && metersArr.length) {
+                    let maxIdx = -1, maxVal = -Infinity;
+                    speedArr.forEach((v, i) => {
+                        if (v !== null && !isNaN(v) && v > maxVal) {
+                            maxVal = v;
+                            maxIdx = i;
+                        }
+                    });
+                    if (maxIdx !== -1 && metersArr[maxIdx] !== null) {
+                        maxSpeedInfo = {
+                            speed: maxVal,
+                            distance: Math.round(metersArr[maxIdx])
+                        };
+                    }
+                }
+                
+                // 2K analysis (quarter percentages)
+                let quarterPercentages = null;
+                if (totalDistance >= 1990 && totalDistance <= 2010 && speedArr.length > 10) {
+                    const quarters = [
+                        { start: 0, end: 500 },
+                        { start: 500, end: 1000 },
+                        { start: 1000, end: 1500 },
+                        { start: 1500, end: 2000 }
+                    ];
+                    
+                    const quarterAvgs = quarters.map(q => {
+                        const indices = metersArr.map((m, i) => (m !== null && m >= q.start && m < q.end ? i : -1)).filter(i => i !== -1);
+                        const speeds = indices.map(i => speedArr[i]).filter(v => v !== null && !isNaN(v));
+                        return speeds.length ? utils.mean(speeds) : null;
+                    });
+                    
+                    const overallAvg = utils.mean(speedArr.filter(v => v !== null && !isNaN(v)));
+                    if (overallAvg && quarterAvgs.every(v => v !== null)) {
+                        quarterPercentages = quarterAvgs.map(v => (100 * v / overallAvg).toFixed(1) + '%');
+                    }
+                }
+                
+                // GPS and weather
+                const startTime = csvParser.parseStartTime(fileText);
+                const middleInfo = analyzer.getMiddleInfo(data);
+                let locationInfo = null;
+                let weatherInfo = null;
+                
+                if (middleInfo.lat && middleInfo.lon) {
+                    const latFixed = Number(middleInfo.lat).toFixed(5);
+                    const lonFixed = Number(middleInfo.lon).toFixed(5);
+                    
+                    // Calculate bearing
+                    const latKey = Object.keys(data[0]).find(k => k.toLowerCase().replace(/[^a-z]/g, '').includes('gpslat'));
+                    const lonKey = Object.keys(data[0]).find(k => k.toLowerCase().replace(/[^a-z]/g, '').includes('gpslon'));
+                    
+                    if (latKey && lonKey) {
+                        const startLat = data[0][latKey];
+                        const startLon = data[0][lonKey];
+                        const endLat = data[data.length - 1][latKey];
+                        const endLon = data[data.length - 1][lonKey];
+                        const bearing = utils.calculateBearing(startLat, startLon, endLat, endLon);
+                        
+                        locationInfo = {
+                            lat: latFixed,
+                            lon: lonFixed,
+                            bearing: bearing ? bearing.toFixed(1) + '°' : null,
+                            mapsUrl: `https://www.google.com/maps?q=${latFixed},${lonFixed}`
+                        };
+                    }
+                    
+                    // Get weather data - but don't let it block the analysis
+                    if (startTime) {
+                        const middleTime = analyzer.getMiddleTimeFromData(fileText, data);
+                        if (middleTime) {
+                            try {
+                                // Try to get weather, but don't wait too long or fail the analysis
+                                const weatherPromise = analyzer.fetchWeatherData(middleInfo.lat, middleInfo.lon, middleTime);
+                                const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 3000));
+                                weatherInfo = await Promise.race([weatherPromise, timeoutPromise]);
+                            } catch (e) {
+                                console.warn('Weather data unavailable, continuing without it');
+                                weatherInfo = null;
+                            }
+                        }
+                    }
+                }
+                
+                return {
+                    duration,
+                    totalDistance,
+                    splitInfo,
+                    metrics,
+                    maxSpeedInfo,
+                    quarterPercentages,
+                    locationInfo,
+                    weatherInfo,
+                    startTime
+                };
+            },
+
+            getMiddleTimeFromData: (fileText, data) => {
+                const start = csvParser.parseStartTime(fileText);
+                if (!start || !data || data.length === 0) return null;
+                const elapsedStr = data[data.length - 1]['Elapsed Time (HH:MM:SS.tenths)'];
+                const elapsedSec = utils.timeStringToSeconds(elapsedStr);
+                const halfSec = elapsedSec / 2;
+                const datum = utils.parseDate(start);
+                if (isNaN(datum.getTime())) return null;
+                const midden = new Date(datum.getTime() + halfSec * 1000);
+                const mm = String(midden.getMonth() + 1).padStart(2, '0');
+                const dd = String(midden.getDate()).padStart(2, '0');
+                const yyyy = midden.getFullYear();
+                const hh = String(midden.getHours()).padStart(2, '0');
+                const min = String(midden.getMinutes()).padStart(2, '0');
+                const ss = String(midden.getSeconds()).padStart(2, '0');
+                return `${mm}/${dd}/${yyyy} ${hh}:${min}:${ss}`;
+            },
+
+            fetchWeatherData: async (lat, lon, dtStr) => {
+                try {
+                    const dt = utils.parseDate(dtStr);
+                    if (isNaN(dt.getTime())) return null;
+
+                    const vandaag = new Date();
+                    vandaag.setHours(0, 0, 0, 0);
+                    const meetdag = new Date(dt);
+                    meetdag.setHours(0, 0, 0, 0);
+                    const isForecast = meetdag >= vandaag;
+
+                    const y = dt.getFullYear();
+                    const m = String(dt.getMonth() + 1).padStart(2, '0');
+                    const d = String(dt.getDate()).padStart(2, '0');
+                    const datum = `${y}-${m}-${d}`;
+
+                    let url = '';
+                    if (isForecast) {
+                        url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,precipitation,windspeed_10m,windgusts_10m,winddirection_10m&windspeed_unit=ms&timezone=auto`;
+                    } else {
+                        url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,precipitation,windspeed_10m,windgusts_10m,winddirection_10m&windspeed_unit=ms&timezone=auto&start_date=${datum}&end_date=${datum}`;
+                    }
+
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+                    
+                    const resp = await fetch(url, { 
+                        signal: controller.signal,
+                        mode: 'cors',
+                        headers: {
+                            'Accept': 'application/json'
+                        }
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    
+                    if (!resp.ok) {
+                        console.warn(`Weather API responded with status: ${resp.status}`);
+                        return null;
+                    }
+                    
+                    const data = await resp.json();
+
+                    if (!data.hourly || !data.hourly.time) {
+                        console.warn('Invalid weather data structure received');
+                        return null;
+                    }
+
+                    // Find closest hour
+                    let minDiff = Infinity, idx = 0;
+                    for (let i = 0; i < data.hourly.time.length; i++) {
+                        const t = new Date(data.hourly.time[i]);
+                        const diff = Math.abs(t - dt);
+                        if (diff < minDiff) { minDiff = diff; idx = i; }
+                    }
+
+                    if (data.hourly.temperature_2m[idx] == null) {
+                        console.warn('No temperature data available for the selected time');
+                        return null;
+                    }
+
+                    return {
+                        temp: data.hourly.temperature_2m[idx],
+                        humidity: data.hourly.relative_humidity_2m[idx],
+                        rain: data.hourly.precipitation[idx],
+                        windSpeed: data.hourly.windspeed_10m[idx],
+                        windGust: data.hourly.windgusts_10m[idx],
+                        windDirection: data.hourly.winddirection_10m[idx],
+                        apiType: isForecast ? 'forecast' : 'archive'
+                    };
+                } catch (e) {
+                    console.warn('Weather data unavailable:', e.message);
+                    return null; // Gracefully return null instead of throwing
+                }
+            }
+        };
+
+        // UI functions
+        const ui = {
+            showLoading: () => {
+                document.getElementById('upload-section').classList.add('hidden');
+                document.getElementById('loading').classList.remove('hidden');
+                document.getElementById('results').classList.add('hidden');
+                document.getElementById('download-section').classList.add('hidden');
+            },
+
+            showResults: () => {
+                document.getElementById('upload-section').classList.add('hidden');
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('results').classList.remove('hidden');
+                document.getElementById('download-section').classList.remove('hidden');
+            },
+
+            showError: (message) => {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('upload-section').classList.remove('hidden');
+                
+                // Remove any existing error messages
+                const existingErrors = document.querySelectorAll('.error');
+                existingErrors.forEach(err => err.remove());
+                
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'error';
+                errorDiv.innerHTML = `<strong>Fout:</strong> ${message}`;
+                document.querySelector('.container').appendChild(errorDiv);
+                
+                // Auto-remove error after 5 seconds
+                setTimeout(() => {
+                    if (errorDiv.parentNode) {
+                        errorDiv.parentNode.removeChild(errorDiv);
+                    }
+                }, 5000);
+            },
+
+            formatStartTime: (startTime) => {
+                if (!startTime) return 'Onbekend';
+                const date = utils.parseDate(startTime);
+                if (isNaN(date.getTime())) return startTime;
+                const dagen = ['zondag', 'maandag', 'dinsdag', 'woensdag', 'donderdag', 'vrijdag', 'zaterdag'];
+                const maanden = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
+                const dag = dagen[date.getDay()];
+                const maand = maanden[date.getMonth()];
+                const dagNr = date.getDate();
+                const tijd = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+                return `${dag} ${dagNr} ${maand} ${tijd}`;
+            },
+
+            renderStatistics: (analysis) => {
+                const statsContainer = document.getElementById('statistics');
+                
+                // Quick summary for fast assessment
+                const summaryHtml = `
+                    <div class="stat-group" style="border-left-color: var(--secondary); background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);">
+                        <div class="group-title">
+                            <span class="group-icon">⚡</span>
+                            Snelle Beoordeling
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem;">
+                            <div style="text-align: center; padding: 0.75rem; background: white; border-radius: 8px; border: 1px solid var(--gray-200);">
+                                <div style="font-size: 1.2rem; font-weight: 600; color: var(--primary);">${analysis.splitInfo.value.split(' ')[0] || 'n.v.t.'}</div>
+                                <div style="font-size: 0.75rem; color: var(--gray-500);">Split /500m</div>
+                            </div>
+                            <div style="text-align: center; padding: 0.75rem; background: white; border-radius: 8px; border: 1px solid var(--gray-200);">
+                                <div style="font-size: 1.2rem; font-weight: 600; color: var(--secondary);">${analysis.metrics.Bootsnelheid ? analysis.metrics.Bootsnelheid.mean.toFixed(2) : 'n.v.t.'}</div>
+                                <div style="font-size: 0.75rem; color: var(--gray-500);">m/s snelheid</div>
+                            </div>
+                        </div>
+                        ${analysis.splitInfo.quality !== 'none' ? 
+                            `<div style="text-align: center; margin-top: 0.75rem; padding: 0.5rem; background: rgba(59, 130, 246, 0.1); border-radius: 6px; color: var(--primary); font-weight: 500;">
+                                ${analysis.totalDistance}m in ${analysis.duration}
+                            </div>` : ''
+                        }
+                    </div>
+                `;
+
+                const performanceHtml = `
+                    <div class="stat-group performance">
+                        <div class="group-title">
+                            <span class="group-icon">🎯</span>
+                            Prestatie
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Datum & Tijd</div>
+                            <div class="stat-value">${ui.formatStartTime(analysis.startTime)}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Duur</div>
+                            <div class="stat-value highlight">${analysis.duration}</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Afstand</div>
+                            <div class="stat-value highlight">${analysis.totalDistance}m</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Split /500m</div>
+                            <div class="stat-value ${analysis.splitInfo.quality !== 'none' ? 'highlight' : ''}">${analysis.splitInfo.value}</div>
+                        </div>
+                        ${analysis.quarterPercentages ? `
+                        <div class="stat-item">
+                            <div class="stat-label">2K Pacing</div>
+                            <div class="stat-value">${analysis.quarterPercentages.join(' - ')}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+
+                const techniqueHtml = `
+                    <div class="stat-group technique">
+                        <div class="group-title">
+                            <span class="group-icon">⚙️</span>
+                            Techniek
+                        </div>
+                        ${analysis.metrics.Bootsnelheid ? `
+                        <div class="stat-item">
+                            <div class="stat-label">Bootsnelheid</div>
+                            <div class="stat-value highlight">${analysis.metrics.Bootsnelheid.mean.toFixed(2)} m/s</div>
+                        </div>
+                        ` : ''}
+                        ${analysis.maxSpeedInfo ? `
+                        <div class="stat-item">
+                            <div class="stat-label">Max snelheid</div>
+                            <div class="stat-value">${analysis.maxSpeedInfo.speed.toFixed(2)} m/s @ ${analysis.maxSpeedInfo.distance}m</div>
+                        </div>
+                        ` : ''}
+                        ${analysis.metrics.SPM ? `
+                        <div class="stat-item">
+                            <div class="stat-label">Slagtempo (SPM)</div>
+                            <div class="stat-value">${analysis.metrics.SPM.mean.toFixed(1)} spm</div>
+                        </div>
+                        ` : ''}
+                        ${analysis.metrics.Haallengte ? `
+                        <div class="stat-item">
+                            <div class="stat-label">Haallengte</div>
+                            <div class="stat-value">${analysis.metrics.Haallengte.mean.toFixed(2)} m</div>
+                        </div>
+                        ` : ''}
+                        ${analysis.metrics.EWpS ? `
+                        <div class="stat-item">
+                            <div class="stat-label">Efficiëntie (EWpS)</div>
+                            <div class="stat-value">${analysis.metrics.EWpS.mean.toFixed(3)}</div>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+
+                const physiologyHtml = analysis.metrics.Hartslag ? `
+                    <div class="stat-group physiology">
+                        <div class="group-title">
+                            <span class="group-icon">❤️</span>
+                            Fysiologie
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Hartslag</div>
+                            <div class="stat-value highlight">${analysis.metrics.Hartslag.mean.toFixed(0)} bpm</div>
+                        </div>
+                    </div>
+                ` : '';
+
+                const environmentHtml = analysis.locationInfo ? `
+                    <div class="stat-group environment">
+                        <div class="group-title">
+                            <span class="group-icon">🌍</span>
+                            Omgeving
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Locatie</div>
+                            <div class="stat-value">
+                                <a href="${analysis.locationInfo.mapsUrl}" target="_blank" style="color: inherit; text-decoration: none;">
+                                    📍 ${analysis.locationInfo.lat}, ${analysis.locationInfo.lon}
+                                </a>
+                                ${analysis.locationInfo.bearing ? ` (${analysis.locationInfo.bearing})` : ''}
+                            </div>
+                        </div>
+                        ${ui.renderWeatherInfo(analysis.weatherInfo, analysis.locationInfo)}
+                    </div>
+                ` : '';
+
+                statsContainer.innerHTML = summaryHtml + performanceHtml + techniqueHtml + physiologyHtml + environmentHtml;
+            },
+
+            getPerformanceContext: (quality, totalDistance, splitMean) => {
+                if (totalDistance >= 1990 && totalDistance <= 2010) {
+                    // 2K specific benchmarks
+                    if (splitMean < 100) return 'Elite niveau (sub-6:40 totaal)';
+                    else if (splitMean < 110) return 'Competitief niveau (6:40-7:20 totaal)';
+                    else if (splitMean < 125) return 'Gevorderd niveau (7:20-8:20 totaal)';
+                    else if (splitMean < 140) return 'Recreatief niveau (8:20-9:20 totaal)';
+                    else return 'Beginnend niveau (9:20+ totaal)';
+                } else {
+                    const contexts = {
+                        'excellent': 'Uitstekende pace - competitief niveau',
+                        'good': 'Goede pace - gevorderd niveau', 
+                        'moderate': 'Degelijke pace - recreatief niveau',
+                        'beginner': 'Beginnerspace - ruimte voor verbetering'
+                    };
+                    return contexts[quality] || '';
+                }
+            },
+
+            getStrokeRateContext: (spm) => {
+                if (spm < 18) return 'Zeer laag tempo (recovery/warming-up)';
+                else if (spm < 22) return 'UT2 zone (aerobe basis training)';
+                else if (spm < 26) return 'UT1 zone (aerobe capaciteit)';
+                else if (spm < 30) return 'AT zone (anaerobe drempel)';
+                else if (spm < 36) return 'Race tempo (anaerobe capaciteit)';
+                else return 'Sprint tempo (neuromusculair)';
+            },
+
+            getBoatSpeedContext: (speed, totalDistance) => {
+                if (totalDistance >= 1990 && totalDistance <= 2010) {
+                    // 2K benchmarks (approximate for single sculls)
+                    if (speed > 5.0) return 'Elite niveau (sub-6:40)';
+                    else if (speed > 4.6) return 'Competitief niveau (6:40-7:20)';
+                    else if (speed > 4.0) return 'Gevorderd niveau (7:20-8:20)';
+                    else if (speed > 3.6) return 'Recreatief niveau (8:20-9:20)';
+                    else return 'Beginnend niveau';
+                } else {
+                    if (speed > 4.5) return 'Zeer hoge snelheid';
+                    else if (speed > 4.0) return 'Hoge snelheid';
+                    else if (speed > 3.5) return 'Goede snelheid';
+                    else return 'Matige snelheid';
+                }
+            },
+
+            getStrokeLengthContext: (length) => {
+                if (length > 10.5) return 'Zeer lange haal - let op techniek';
+                else if (length > 9.5) return 'Lange haal - goed voor power';
+                else if (length > 8.5) return 'Gemiddelde haallengte';
+                else if (length > 7.5) return 'Korte haal - verhoog lengte';
+                else return 'Zeer korte haal - focus op techniek';
+            },
+
+            getPacingAnalysis: (quarterPercentages) => {
+                if (!quarterPercentages || quarterPercentages.length !== 4) return '';
+                
+                const percentages = quarterPercentages.map(p => parseFloat(p.replace('%', '')));
+                const [q1, q2, q3, q4] = percentages;
+                
+                // Analyse pacing strategie
+                if (q1 > 102 && q4 > 102) return 'Agressieve start en sterke finish 💪';
+                else if (q1 > 102 && q4 < 98) return 'Te snelle start - energie op ⚠️';
+                else if (q1 < 98 && q4 > 102) return 'Conservatieve start - sterke finish 🎯';
+                else if (Math.max(...percentages) - Math.min(...percentages) < 3) return 'Zeer constante pace - ideaal! ✨';
+                else if (q2 < 98 && q3 < 98) return 'Klassieke negatieve split strategie 📈';
+                else return 'Variabele pacing - analyseer per 500m 📊';
+            },
+
+            renderWeatherInfo: (weather, location) => {
+                if (!weather) {
+                    return `
+                        <div class="stat-item">
+                            <div class="stat-label">Weer</div>
+                            <div class="stat-value" style="color: var(--gray-400);">Niet beschikbaar</div>
+                        </div>
+                    `;
+                }
+                
+                let windEffect = '';
+                if (location && location.bearing && weather.windDirection !== null && weather.windSpeed !== null) {
+                    try {
+                        const bearing = parseFloat(location.bearing);
+                        const windDir = weather.windDirection;
+                        const windSpeed = weather.windSpeed;
+                        
+                        const angle = (windDir - bearing + 360) % 360;
+                        
+                        if ((angle <= 45 || angle >= 315) && windSpeed >= 3.5) {
+                            windEffect = '😟 Tegenwind';
+                        } else if (angle >= 135 && angle <= 225 && windSpeed <= 7.9) {
+                            windEffect = '😊 Meewind';
+                        } else if ((angle > 45 && angle < 135) || (angle > 225 && angle < 315)) {
+                            windEffect = windSpeed >= 3.5 ? '😟 Sterke zijwind' : '😊 Lichte zijwind';
+                        } else {
+                            windEffect = '😐 Neutraal';
+                        }
+                    } catch (e) {
+                        console.warn('Error calculating wind effect:', e);
+                        windEffect = '';
+                    }
+                }
+
+                const badges = [];
+                if (weather.temp !== null && weather.temp !== undefined) badges.push(`🌡️ ${weather.temp}°C`);
+                if (weather.humidity !== null && weather.humidity !== undefined) badges.push(`💧 ${weather.humidity}%`);
+                if (weather.rain !== null && weather.rain !== undefined && weather.rain > 0) badges.push(`🌧️ ${weather.rain}mm`);
+                
+                let windInfo = '';
+                if (weather.windSpeed !== null && weather.windSpeed !== undefined) {
+                    const windBft = utils.msToBft(weather.windSpeed);
+                    const gustBft = weather.windGust !== null && weather.windGust !== undefined ? utils.msToBft(weather.windGust) : windBft;
+                    const direction = weather.windDirection !== null && weather.windDirection !== undefined ? `${Math.round(weather.windDirection)}°` : '';
+                    windInfo = `💨 ${weather.windSpeed.toFixed(1)}/${(weather.windGust || weather.windSpeed).toFixed(1)} m/s (${windBft}/${gustBft} Bft) ${direction}`;
+                }
+
+                return `
+                    <div class="stat-item">
+                        <div class="stat-label">Weer</div>
+                        <div class="stat-value">
+                            <div class="weather-info">
+                                ${badges.map(badge => `<span class="weather-badge">${badge}</span>`).join('')}
+                            </div>
+                            ${windInfo ? `<div style="margin-top: 0.5rem; font-size: 0.8rem;">${windInfo}</div>` : ''}
+                            ${windEffect ? `<div class="wind-effect">${windEffect}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            },
+
+            renderStrokeTable: (data) => {
+                const container = document.getElementById('stroke-table-container');
+                
+                // Filter out irrelevant columns
+                const alwaysHide = [
+                    'Interval (Interval)',
+                    'GPS Lat. (Degrees)',
+                    'GPS Lon. (Degrees)',
+                    'Total Strokes (Strokes)'
+                ];
+
+                const hideIfAllEmpty = [
+                    'Distance (IMP) (Meters)',
+                    'Split (IMP) (/500)',
+                    'Speed (IMP) (M/S)',
+                    'Distance/Stroke (IMP) (Meters)',
+                    'Heart Rate (BPM)',
+                    'Power (Watts)',
+                    'Catch (Degrees)',
+                    'Slip (Degrees)',
+                    'Finish (Degrees)',
+                    'Wash (Degrees)',
+                    'Force Avg (Newtons)',
+                    'Work (Joules)',
+                    'Force Max (Newtons)',
+                    'Max Force Angle (Degrees)'
+                ];
+
+                let allKeys = Object.keys(data[0]);
+                allKeys = allKeys.filter(k => !alwaysHide.includes(k));
+                allKeys = allKeys.filter(k => {
+                    if (!hideIfAllEmpty.includes(k)) return true;
+                    return data.some(row => {
+                        let v = row[k];
+                        if (typeof v === 'string') v = v.trim();
+                        if (v === null || v === undefined || v === '' || v === '0' || v === 0 ||
+                            v === '---' || v === '0.000' || v === 0.000 || v === '00:00:00.0' ||
+                            v === '0:00.0' || v === '0.0') return false;
+                        const num = Number(v);
+                        if (isNaN(num)) return true;
+                        return Math.abs(num) > 1e-8;
+                    });
+                });
+
+                // Column ordering
+                const strokeKey = 'Stroke';
+                const infoOrder = [
+                    'Elapsed Time (HH:MM:SS.tenths)',
+                    'Distance (GPS) (Meters)',
+                    'Split (GPS) (/500)',
+                    'Speed (GPS) (M/S)',
+                    'Distance/Stroke (GPS) (Meters)',
+                    'Stroke Rate (SPM)',
+                    'Heart Rate (BPM)'
+                ];
+
+                allKeys = allKeys.filter(k => !infoOrder.includes(k));
+                const headers = [strokeKey, ...infoOrder.filter(h => data[0][h] !== undefined), ...allKeys];
+
+                // Calculate moving averages for relevant columns
+                const maData = {};
+                headers.slice(1).forEach(key => {
+                    const vals = data.map(row => row[key]).map(v => (typeof v === 'string' ? v.trim() : v));
+                    const isNumeric = vals.some(v => v !== null && v !== undefined && v !== '' && !isNaN(v) && v !== '---');
+                    if (isNumeric) {
+                        const numVals = vals.map(v => (v !== null && v !== undefined && v !== '' && !isNaN(v) && v !== '---') ? Number(v) : null);
+                        maData[key] = utils.movingAverage(numVals, CONFIG.MOVING_AVERAGE_WINDOW);
+                    } else {
+                        maData[key] = vals;
+                    }
+                });
+
+                // Add EWpS if available
+                if (data[0].ewps !== undefined) {
+                    headers.push('EWpS');
+                    maData['EWpS'] = data.map(row => row.ewps);
+                }
+
+                // Find min/max indices
+                const highlightCols = [
+                    'Stroke Rate (SPM)',
+                    'EWpS',
+                    'Split (GPS) (/500)',
+                    'Speed (GPS) (M/S)',
+                    'Distance/Stroke (GPS) (Meters)'
+                ];
+
+                const minIdx = {}, maxIdx = {};
+                highlightCols.forEach(col => {
+                    if (headers.includes(col) && maData[col]) {
+                        const vals = maData[col].map(v => (v !== null && v !== undefined && v !== '' && !isNaN(v) && v !== '---') ? Number(v) : null);
+                        let min = Infinity, max = -Infinity, minI = -1, maxI = -1;
+                        
+                        // Start from 100m threshold
+                        let startIdx = 0;
+                        if (headers.includes('Distance (GPS) (Meters)') && maData['Distance (GPS) (Meters)']) {
+                            const meters = maData['Distance (GPS) (Meters)'];
+                            startIdx = meters.findIndex(m => m !== null && m >= CONFIG.MIN_DISTANCE_THRESHOLD);
+                            if (startIdx === -1) startIdx = 0;
+                        }
+
+                        for (let i = startIdx; i < vals.length; i++) {
+                            const v = vals[i];
+                            if (v !== null && v < min) { min = v; minI = i; }
+                            if (v !== null && v > max) { max = v; maxI = i; }
+                        }
+                        minIdx[col] = minI;
+                        maxIdx[col] = maxI;
+                    }
+                });
+
+                // Generate table HTML
+                let html = `
+                    <div class="stroke-table-container">
+                        <h3 style="margin: 0 0 1rem; color: var(--gray-700);">📊 Stroke Detail Analyse</h3>
+                        <table class="stroke-table">
+                            <thead>
+                                <tr>
+                                    ${headers.map(h => `<th>${h === 'EWpS' ? 'EWpS' : h}</th>`).join('')}
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                // Generate table rows
+                data.forEach((row, rowIdx) => {
+                    html += '<tr>';
+                    
+                    const isMinOrMax = headers.slice(1).some(key => minIdx[key] === rowIdx || maxIdx[key] === rowIdx);
+                    const strokeStyle = isMinOrMax ? 'highlight-row-value' : '';
+                    html += `<td class="${strokeStyle}">${rowIdx + 1}</td>`;
+
+                    headers.slice(1).forEach(key => {
+                        let val = key === 'EWpS' ? row.ewps : maData[key][rowIdx];
+                        let className = '';
+
+                        // Format time values
+                        if (key === 'Elapsed Time (HH:MM:SS.tenths)' || key === 'Split (GPS) (/500)') {
+                            if (typeof val === 'string') {
+                                val = val.replace(/\b0+(\d)/g, '$1').replace(/^(0+:)+/, '');
+                                if (/^(:?0+\.?0*)+$/.test(val)) val = '0.0';
+                            }
+                        }
+
+                        // Format numbers
+                        if (val !== null && val !== undefined && val !== '' && !isNaN(val) && val !== '---') {
+                            const num = Number(val);
+                            if (key === 'EWpS') val = num.toFixed(3);
+                            else if (key === 'Stroke Rate (SPM)') val = num.toFixed(1);
+                            else if (Math.abs(num) >= 10) val = num.toFixed(2);
+                            else val = num.toFixed(3);
+                        }
+
+                        // Highlight min/max
+                        if (minIdx[key] === rowIdx) className = 'highlight-min';
+                        if (maxIdx[key] === rowIdx) className = 'highlight-max';
+                        
+                        if (isMinOrMax && (key === 'Distance (GPS) (Meters)' || key === 'Elapsed Time (HH:MM:SS.tenths)')) {
+                            className += ' highlight-row-value';
+                        }
+
+                        html += `<td class="${className}">${val !== undefined ? val : ''}</td>`;
+                    });
+                    html += '</tr>';
+                });
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                container.innerHTML = html;
+            }
+        };
+
+        // File handling - simplified for single CSV
+        async function handleFile(file) {
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                ui.showError('Selecteer een geldig CSV-bestand.');
+                return;
+            }
+
+            ui.showLoading();
+
+            try {
+                const text = await file.text();
+                const data = csvParser.parseCSVSections(text);
+                
+                if (!data || data.length === 0) {
+                    ui.showError('Geen geldige SpeedCoach data gevonden in het bestand.');
+                    return;
+                }
+
+                // Always analyze the data first
+                const analysis = await analyzer.analyzeData(data, text);
+                currentData = data;
+                currentAnalysis = analysis;
+                
+                ui.renderStatistics(analysis);
+                ui.renderStrokeTable(data);
+                ui.showResults();
+                
+            } catch (error) {
+                console.error('Analysis error:', error);
+                ui.showError('Er is een fout opgetreden bij het analyseren van het bestand. Controleer of het een geldig SpeedCoach CSV bestand is.');
+            }
+        }
+
+        // Reset functionality
+        function resetTool() {
+            currentData = null;
+            currentAnalysis = null;
+            document.getElementById('file-input').value = '';
+            document.getElementById('upload-section').classList.remove('hidden');
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('results').classList.add('hidden');
+            document.getElementById('download-section').classList.add('hidden');
+        }
+        function downloadAnalysis() {
+            if (!currentAnalysis) return;
+            
+            const analysis = currentAnalysis;
+            
+            // Build comprehensive markdown content
+            let markdown = '# 🚣‍♀️ SpeedCoach Roei Analyse Rapport\n\n';
+            
+            markdown += `## 📊 Prestatie Overzicht\n\n`;
+            markdown += `**Datum:** ${ui.formatStartTime(analysis.startTime)}\n`;
+            markdown += `**Duur:** ${analysis.duration}\n`;
+            markdown += `**Afstand:** ${analysis.totalDistance}m\n`;
+            markdown += `**Split /500m:** ${analysis.splitInfo.value}\n\n`;
+            
+            markdown += `## ⚙️ Technische Analyse\n\n`;
+            if (analysis.metrics.Bootsnelheid) {
+                markdown += `**Bootsnelheid:** ${analysis.metrics.Bootsnelheid.mean.toFixed(2)} m/s\n`;
+            }
+            
+            if (analysis.metrics.SPM) {
+                markdown += `**Slagtempo:** ${analysis.metrics.SPM.mean.toFixed(1)} spm\n`;
+            }
+            
+            if (analysis.metrics.Haallengte) {
+                markdown += `**Haallengte:** ${analysis.metrics.Haallengte.mean.toFixed(2)} m\n`;
+            }
+            
+            if (analysis.metrics.EWpS) {
+                markdown += `**Efficiëntie (EWpS):** ${analysis.metrics.EWpS.mean.toFixed(3)}\n`;
+            }
+            
+            if (analysis.maxSpeedInfo) {
+                markdown += `**Max snelheid:** ${analysis.maxSpeedInfo.speed.toFixed(2)} m/s @ ${analysis.maxSpeedInfo.distance}m\n`;
+            }
+            
+            if (analysis.quarterPercentages) {
+                markdown += `\n## 🎯 2K Pacing Analyse\n\n`;
+                markdown += `**Splits per 500m:** ${analysis.quarterPercentages.join(' - ')}\n`;
+            }
+            
+            if (analysis.metrics.Hartslag) {
+                markdown += `\n## ❤️ Fysiologie\n\n`;
+                markdown += `**Hartslag:** ${analysis.metrics.Hartslag.mean.toFixed(0)} bpm\n`;
+            }
+            
+            if (analysis.locationInfo) {
+                markdown += `\n## 🌍 Locatie & Omgeving\n\n`;
+                markdown += `**GPS:** ${analysis.locationInfo.lat}, ${analysis.locationInfo.lon}\n`;
+                if (analysis.locationInfo.bearing) {
+                    markdown += `**Vaarrichting:** ${analysis.locationInfo.bearing}\n`;
+                }
+            }
+            
+            if (analysis.weatherInfo) {
+                markdown += `**Weer:** ${analysis.weatherInfo.temp || 'n.v.t.'}°C, ${analysis.weatherInfo.humidity || 'n.v.t.'}% RH\n`;
+                if (analysis.weatherInfo.windSpeed) {
+                    markdown += `**Wind:** ${analysis.weatherInfo.windSpeed.toFixed(1)} m/s @ ${analysis.weatherInfo.windDirection || 'n.v.t.'}°\n`;
+                }
+            }
+            
+            markdown += `\n---\n\n*Gegenereerd op ${new Date().toLocaleDateString('nl-NL')} door SpeedCoach Roei Analyse Tool*`;
+            
+            const blob = new Blob([markdown], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `roei-analyse-${new Date().toISOString().slice(0,10)}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            const fileInput = document.getElementById('file-input');
+            const uploadArea = document.getElementById('upload-area');
+            const downloadBtn = document.getElementById('download-btn');
+            const resetBtn = document.getElementById('reset-btn');
+
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files[0]) {
+                    handleFile(e.target.files[0]);
+                }
+            });
+
+            uploadArea.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                if (e.dataTransfer.files[0]) {
+                    handleFile(e.dataTransfer.files[0]);
+                }
+            });
+
+            downloadBtn.addEventListener('click', downloadAnalysis);
+            resetBtn.addEventListener('click', resetTool);
+        });
+    </script>
+</body>
+</html>
