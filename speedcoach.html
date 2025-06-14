@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SpeedCoach Roei Analyse</title>
     <style>
@@ -407,7 +407,7 @@
                     of klik om bestand te selecteren
                 </div>
                 <input type="file" accept=".csv" class="file-input" id="file-input">
-                <button class="btn">Kies bestand</button>
+                <!-- Button verwijderd om dubbele dialog te voorkomen -->
             </div>
         </div>
 
@@ -578,6 +578,67 @@
 
         // Analysis functions
         const analyzer = {
+            detect2k: (rows) => {
+                // Dynamisch de juiste kolommen vinden
+                const distKey = Object.keys(rows[0])
+                    .find(k => k.toLowerCase().includes('distance') && k.toLowerCase().includes('meters'));
+                const timeKey = Object.keys(rows[0])
+                    .find(k => k.toLowerCase().includes('elapsed'));
+                
+                // Valt terug op volledige dataset als kolommen ontbreken
+                if (!distKey || !timeKey) return { trim: rows, applied: false };
+                
+                // Cumulatieve afstand & tijd extraheren
+                const strokes = rows.map(r => ({
+                    d: parseFloat(r[distKey]),
+                    t: utils.timeStringToSeconds(r[timeKey]),
+                    row: r
+                })).filter(s => isFinite(s.d) && isFinite(s.t));
+                
+                // Chronologisch sorteren
+                strokes.sort((a, b) => a.t - b.t);
+                
+                // Controle: totale afstand < 2k → niets trimmen
+                if (strokes.length === 0 || strokes[strokes.length - 1].d - strokes[0].d < 2000) {
+                    return { trim: rows, applied: false };
+                }
+                
+                // Sliding-window om snelste 2k te vinden
+                let best = { dt: Infinity, bs: 0, be: 0 };
+                
+                for (let i = 0; i < strokes.length; i++) {
+                    // Zoek de stroke die het dichtst bij 2000m ligt vanaf stroke i
+                    let closestIdx = -1;
+                    let closestDiff = Infinity;
+                    
+                    for (let j = i + 1; j < strokes.length; j++) {
+                        const distance = strokes[j].d - strokes[i].d;
+                        if (distance >= 2000) {
+                            const diff = Math.abs(distance - 2000);
+                            if (diff < closestDiff) {
+                                closestDiff = diff;
+                                closestIdx = j;
+                            }
+                            // Stop zodra we te ver gaan
+                            if (distance > 2050) break;
+                        }
+                    }
+                    
+                    if (closestIdx !== -1) {
+                        const dt = strokes[closestIdx].t - strokes[i].t;
+                        if (dt < best.dt) {
+                            best = { dt, bs: i, be: closestIdx };
+                        }
+                    }
+                }
+                
+                // Teruggeven van getrimde strokes + vlag
+                return {
+                    trim: strokes.slice(best.bs, best.be + 1).map(s => s.row),
+                    applied: true
+                };
+            },
+
             calculateSplits: (data) => {
                 const splitKey = 'Split (GPS) (/500)';
                 return data.map(row => {
@@ -619,6 +680,11 @@
             },
 
             analyzeData: async (data, fileText) => {
+                // Eerst 2k detectie toepassen indien van toepassing
+                const detect2kResult = analyzer.detect2k(data);
+                data = detect2kResult.trim;
+                const is2kTrimmed = detect2kResult.applied;
+                
                 analyzer.addEWpSToData(data);
                 
                 const meters = csvParser.parseMeters(data);
@@ -647,7 +713,7 @@
                         splitInfo.value = utils.formatTime(splitMean);
                         splitInfo.stddev = splitStd;
                         splitInfo.meanSeconds = splitMean;
-                        if (splitStd) splitInfo.value += ` (±${utils.formatSplitSD(splitStd)})`;
+                        if (splitStd) splitInfo.value += ` (±${utils.formatSplitSD(splitStd)} σ)`;
                         
                         // Quality assessment
                         if (splitMean < 90) splitInfo.quality = 'excellent';
@@ -801,7 +867,8 @@
                     quarterPercentages,
                     locationInfo,
                     weatherInfo,
-                    startTime
+                    startTime,
+                    is2kTrimmed
                 };
             },
 
@@ -828,11 +895,15 @@
                     const dt = utils.parseDate(dtStr);
                     if (isNaN(dt.getTime())) return null;
 
+                    // Gebruik lokale tijd voor vergelijking
                     const vandaag = new Date();
-                    vandaag.setHours(0, 0, 0, 0);
                     const meetdag = new Date(dt);
-                    meetdag.setHours(0, 0, 0, 0);
-                    const isForecast = meetdag >= vandaag;
+                    
+                    // Vergelijk op basis van datum (niet tijd)
+                    const vandaagDatum = new Date(vandaag.getFullYear(), vandaag.getMonth(), vandaag.getDate());
+                    const meetdagDatum = new Date(meetdag.getFullYear(), meetdag.getMonth(), meetdag.getDate());
+                    
+                    const isForecast = meetdagDatum >= vandaagDatum;
 
                     const y = dt.getFullYear();
                     const m = String(dt.getMonth() + 1).padStart(2, '0');
@@ -841,9 +912,13 @@
 
                     let url = '';
                     if (isForecast) {
+                        // Forecast API voor vandaag en toekomst
                         url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,precipitation,windspeed_10m,windgusts_10m,winddirection_10m&windspeed_unit=ms&timezone=auto`;
+                        console.log('Using forecast API for', datum);
                     } else {
+                        // Archive API voor het verleden
                         url = `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,relative_humidity_2m,precipitation,windspeed_10m,windgusts_10m,winddirection_10m&windspeed_unit=ms&timezone=auto&start_date=${datum}&end_date=${datum}`;
+                        console.log('Using archive API for', datum);
                     }
 
                     const controller = new AbortController();
@@ -860,7 +935,7 @@
                     clearTimeout(timeoutId);
                     
                     if (!resp.ok) {
-                        console.warn(`Weather API responded with status: ${resp.status}`);
+                        console.warn(`Weather API responded with status: ${resp.status} for ${isForecast ? 'forecast' : 'archive'}`);
                         return null;
                     }
                     
@@ -884,6 +959,7 @@
                         return null;
                     }
 
+                    console.log(`Weather data retrieved successfully using ${isForecast ? 'forecast' : 'archive'} API`);
                     return {
                         temp: data.hourly.temperature_2m[idx],
                         humidity: data.hourly.relative_humidity_2m[idx],
@@ -958,7 +1034,7 @@
                     <div class="stat-group" style="border-left-color: var(--secondary); background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);">
                         <div class="group-title">
                             <span class="group-icon">⚡</span>
-                            Snelle Beoordeling
+                            Snelle Beoordeling${analysis.is2kTrimmed ? ' (Snelste 2k gedetecteerd)' : ''}
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem;">
                             <div style="text-align: center; padding: 0.75rem; background: white; border-radius: 8px; border: 1px solid var(--gray-200);">
@@ -973,6 +1049,11 @@
                         ${analysis.splitInfo.quality !== 'none' ? 
                             `<div style="text-align: center; margin-top: 0.75rem; padding: 0.5rem; background: rgba(59, 130, 246, 0.1); border-radius: 6px; color: var(--primary); font-weight: 500;">
                                 ${analysis.totalDistance}m in ${analysis.duration}
+                            </div>` : ''
+                        }
+                        ${analysis.is2kTrimmed ? 
+                            `<div style="text-align: center; margin-top: 0.5rem; padding: 0.4rem; background: rgba(234, 88, 12, 0.1); border-radius: 6px; color: var(--secondary); font-size: 0.8rem; font-weight: 500;">
+                                🎯 Automatisch snelste 2000m segment geanalyseerd
                             </div>` : ''
                         }
                     </div>
@@ -1019,7 +1100,7 @@
                         <div class="stat-item">
                             <div class="stat-label">Bootsnelheid</div>
                             <div class="stat-value highlight">${analysis.metrics.Bootsnelheid.mean.toFixed(2)} m/s</div>
-                            ${analysis.metrics.Bootsnelheid.sd ? `<div class="stat-context">±${analysis.metrics.Bootsnelheid.sd.toFixed(2)} standaarddeviatie</div>` : ''}
+                            ${analysis.metrics.Bootsnelheid.sd ? `<div class="stat-context"> (±${analysis.metrics.Bootsnelheid.sd.toFixed(2)} σ)</div>` : ''}
                         </div>
                         ` : ''}
                         ${analysis.maxSpeedInfo ? `
@@ -1038,21 +1119,21 @@
                         <div class="stat-item">
                             <div class="stat-label">Slagtempo (SPM)</div>
                             <div class="stat-value">${analysis.metrics.SPM.mean.toFixed(1)} spm</div>
-                            ${analysis.metrics.SPM.sd ? `<div class="stat-context">±${analysis.metrics.SPM.sd.toFixed(1)} standaarddeviatie</div>` : ''}
+                            ${analysis.metrics.SPM.sd ? `<div class="stat-context"> (±${analysis.metrics.SPM.sd.toFixed(1)} σ)</div>` : ''}
                         </div>
                         ` : ''}
                         ${analysis.metrics.Haallengte ? `
                         <div class="stat-item">
                             <div class="stat-label">Haallengte</div>
                             <div class="stat-value">${analysis.metrics.Haallengte.mean.toFixed(2)} m</div>
-                            ${analysis.metrics.Haallengte.sd ? `<div class="stat-context">±${analysis.metrics.Haallengte.sd.toFixed(2)} standaarddeviatie</div>` : ''}
+                            ${analysis.metrics.Haallengte.sd ? `<div class="stat-context"> (±${analysis.metrics.Haallengte.sd.toFixed(2)} σ)</div>` : ''}
                         </div>
                         ` : ''}
                         ${analysis.metrics.EWpS ? `
                         <div class="stat-item">
                             <div class="stat-label">Efficiëntie (EWpS)</div>
                             <div class="stat-value">${analysis.metrics.EWpS.mean.toFixed(3)}</div>
-                            ${analysis.metrics.EWpS.sd ? `<div class="stat-context">±${analysis.metrics.EWpS.sd.toFixed(3)} standaarddeviatie</div>` : ''}
+                            ${analysis.metrics.EWpS.sd ? `<div class="stat-context"> (±${analysis.metrics.EWpS.sd.toFixed(3)} σ)</div>` : ''}
                         </div>
                         ` : ''}
                     </div>
@@ -1067,7 +1148,7 @@
                         <div class="stat-item">
                             <div class="stat-label">Hartslag</div>
                             <div class="stat-value highlight">${analysis.metrics.Hartslag.mean.toFixed(0)} bpm</div>
-                            ${analysis.metrics.Hartslag.sd ? `<div class="stat-context">±${analysis.metrics.Hartslag.sd.toFixed(0)} standaarddeviatie</div>` : ''}
+                            ${analysis.metrics.Hartslag.sd ? `<div class="stat-context"> (±${analysis.metrics.Hartslag.sd.toFixed(0)} σ)</div>` : ''}
                         </div>
                     </div>
                 ` : '';
@@ -1236,9 +1317,10 @@
                     return (!v || v === '---') ? null : parseFloat(v);
                 });
 
-                const maxDistance = Math.max(...metersArr.filter(v => v !== null));
+                // Use 2000m as max instead of total distance
+                const maxDistance = Math.min(2000, Math.max(...metersArr.filter(v => v !== null)));
                 
-                // Create 250m intervals
+                // Create 250m intervals up to 2000m only
                 const intervals = [];
                 for (let start = 0; start < maxDistance; start += 250) {
                     const end = Math.min(start + 250, maxDistance);
@@ -1321,7 +1403,7 @@
                 // Generate table HTML
                 let html = `
                     <div class="stroke-table-container">
-                        <h3 style="margin: 0 0 1rem; color: var(--gray-700);">📊 250m Interval Analyse</h3>
+                        <h3 style="margin: 0 0 1rem; color: var(--gray-700);">📊 250m Interval Analyse (2000m)</h3>
                         <table class="stroke-table">
                             <thead>
                                 <tr>
@@ -1430,7 +1512,12 @@
             document.getElementById('loading').classList.add('hidden');
             document.getElementById('results').classList.add('hidden');
             document.getElementById('download-section').classList.add('hidden');
+            
+            // Clear any existing error messages
+            const existingErrors = document.querySelectorAll('.error');
+            existingErrors.forEach(err => err.remove());
         }
+
         function downloadAnalysis() {
             if (!currentAnalysis) return;
             
@@ -1438,6 +1525,10 @@
             
             // Build comprehensive markdown content
             let markdown = '# 🚣‍♀️ SpeedCoach Roei Analyse Rapport\n\n';
+            
+            if (analysis.is2kTrimmed) {
+                markdown += '> **📊 Automatische 2k Detectie:** Dit rapport toont de analyse van het snelste 2000m segment uit een langere training.\n\n';
+            }
             
             markdown += `## 📊 Prestatie Overzicht\n\n`;
             markdown += `**Datum:** ${ui.formatStartTime(analysis.startTime)}\n`;
@@ -1531,10 +1622,9 @@
                 }
             });
 
-            uploadArea.addEventListener('click', () => {
-                fileInput.click();
-            });
-
+            // VERWIJDERD: dubbele click event handler op uploadArea
+            // De file input doet het werk al via de browser's native behavior
+            
             uploadArea.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 uploadArea.classList.add('dragover');
