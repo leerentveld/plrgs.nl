@@ -297,12 +297,23 @@
             position: sticky;
             top: 0;
             z-index: 10;
+            font-size: 0.75rem;
+        }
+
+        .stroke-table th:first-child {
+            text-align: left;
         }
 
         .stroke-table td {
             padding: 0.4rem 0.25rem;
             text-align: right;
             border-bottom: 1px solid var(--gray-100);
+            font-size: 0.75rem;
+        }
+
+        .stroke-table td:first-child {
+            text-align: left;
+            font-weight: 500;
         }
 
         .stroke-table tr:hover {
@@ -363,6 +374,16 @@
             
             .stat-group {
                 padding: 0.75rem;
+            }
+
+            .stroke-table {
+                font-size: 0.7rem;
+            }
+
+            .stroke-table th,
+            .stroke-table td {
+                padding: 0.3rem 0.15rem;
+                font-size: 0.7rem;
             }
         }
 
@@ -658,24 +679,46 @@
                     metrics.EWpS = { mean: utils.mean(ewpsArr), sd: utils.stddev(ewpsArr) };
                 }
                 
-                // Max speed and location
+                // Max/Min speed and location
                 let maxSpeedInfo = null;
+                let minSpeedInfo = null;
                 const speedArr = data.map(row => {
                     const v = row['Speed (GPS) (M/S)'];
                     return (!v || v === '---') ? null : parseFloat(v);
                 });
                 if (speedArr.length && metersArr.length) {
                     let maxIdx = -1, maxVal = -Infinity;
+                    let minIdx = -1, minVal = Infinity;
+                    
+                    // Start from 100m threshold for min speed
+                    const startIdx = metersArr.findIndex(m => m !== null && m >= CONFIG.MIN_DISTANCE_THRESHOLD);
+                    const searchStart = startIdx !== -1 ? startIdx : 0;
+                    
                     speedArr.forEach((v, i) => {
-                        if (v !== null && !isNaN(v) && v > maxVal) {
-                            maxVal = v;
-                            maxIdx = i;
+                        if (v !== null && !isNaN(v)) {
+                            if (v > maxVal) {
+                                maxVal = v;
+                                maxIdx = i;
+                            }
+                            // Only check min after 100m threshold
+                            if (i >= searchStart && v < minVal) {
+                                minVal = v;
+                                minIdx = i;
+                            }
                         }
                     });
+                    
                     if (maxIdx !== -1 && metersArr[maxIdx] !== null) {
                         maxSpeedInfo = {
                             speed: maxVal,
                             distance: Math.round(metersArr[maxIdx])
+                        };
+                    }
+                    
+                    if (minIdx !== -1 && metersArr[minIdx] !== null) {
+                        minSpeedInfo = {
+                            speed: minVal,
+                            distance: Math.round(metersArr[minIdx])
                         };
                     }
                 }
@@ -754,6 +797,7 @@
                     splitInfo,
                     metrics,
                     maxSpeedInfo,
+                    minSpeedInfo,
                     quarterPercentages,
                     locationInfo,
                     weatherInfo,
@@ -975,6 +1019,7 @@
                         <div class="stat-item">
                             <div class="stat-label">Bootsnelheid</div>
                             <div class="stat-value highlight">${analysis.metrics.Bootsnelheid.mean.toFixed(2)} m/s</div>
+                            ${analysis.metrics.Bootsnelheid.sd ? `<div class="stat-context">±${analysis.metrics.Bootsnelheid.sd.toFixed(2)} standaarddeviatie</div>` : ''}
                         </div>
                         ` : ''}
                         ${analysis.maxSpeedInfo ? `
@@ -983,22 +1028,31 @@
                             <div class="stat-value">${analysis.maxSpeedInfo.speed.toFixed(2)} m/s @ ${analysis.maxSpeedInfo.distance}m</div>
                         </div>
                         ` : ''}
+                        ${analysis.minSpeedInfo ? `
+                        <div class="stat-item">
+                            <div class="stat-label">Min snelheid</div>
+                            <div class="stat-value">${analysis.minSpeedInfo.speed.toFixed(2)} m/s @ ${analysis.minSpeedInfo.distance}m</div>
+                        </div>
+                        ` : ''}
                         ${analysis.metrics.SPM ? `
                         <div class="stat-item">
                             <div class="stat-label">Slagtempo (SPM)</div>
                             <div class="stat-value">${analysis.metrics.SPM.mean.toFixed(1)} spm</div>
+                            ${analysis.metrics.SPM.sd ? `<div class="stat-context">±${analysis.metrics.SPM.sd.toFixed(1)} standaarddeviatie</div>` : ''}
                         </div>
                         ` : ''}
                         ${analysis.metrics.Haallengte ? `
                         <div class="stat-item">
                             <div class="stat-label">Haallengte</div>
                             <div class="stat-value">${analysis.metrics.Haallengte.mean.toFixed(2)} m</div>
+                            ${analysis.metrics.Haallengte.sd ? `<div class="stat-context">±${analysis.metrics.Haallengte.sd.toFixed(2)} standaarddeviatie</div>` : ''}
                         </div>
                         ` : ''}
                         ${analysis.metrics.EWpS ? `
                         <div class="stat-item">
                             <div class="stat-label">Efficiëntie (EWpS)</div>
                             <div class="stat-value">${analysis.metrics.EWpS.mean.toFixed(3)}</div>
+                            ${analysis.metrics.EWpS.sd ? `<div class="stat-context">±${analysis.metrics.EWpS.sd.toFixed(3)} standaarddeviatie</div>` : ''}
                         </div>
                         ` : ''}
                     </div>
@@ -1013,6 +1067,7 @@
                         <div class="stat-item">
                             <div class="stat-label">Hartslag</div>
                             <div class="stat-value highlight">${analysis.metrics.Hartslag.mean.toFixed(0)} bpm</div>
+                            ${analysis.metrics.Hartslag.sd ? `<div class="stat-context">±${analysis.metrics.Hartslag.sd.toFixed(0)} standaarddeviatie</div>` : ''}
                         </div>
                     </div>
                 ` : '';
@@ -1167,169 +1222,159 @@
                 `;
             },
 
-            renderStrokeTable: (data) => {
+            render250mTable: (data) => {
                 const container = document.getElementById('stroke-table-container');
                 
-                // Filter out irrelevant columns
-                const alwaysHide = [
-                    'Interval (Interval)',
-                    'GPS Lat. (Degrees)',
-                    'GPS Lon. (Degrees)',
-                    'Total Strokes (Strokes)'
-                ];
-
-                const hideIfAllEmpty = [
-                    'Distance (IMP) (Meters)',
-                    'Split (IMP) (/500)',
-                    'Speed (IMP) (M/S)',
-                    'Distance/Stroke (IMP) (Meters)',
-                    'Heart Rate (BPM)',
-                    'Power (Watts)',
-                    'Catch (Degrees)',
-                    'Slip (Degrees)',
-                    'Finish (Degrees)',
-                    'Wash (Degrees)',
-                    'Force Avg (Newtons)',
-                    'Work (Joules)',
-                    'Force Max (Newtons)',
-                    'Max Force Angle (Degrees)'
-                ];
-
-                let allKeys = Object.keys(data[0]);
-                allKeys = allKeys.filter(k => !alwaysHide.includes(k));
-                allKeys = allKeys.filter(k => {
-                    if (!hideIfAllEmpty.includes(k)) return true;
-                    return data.some(row => {
-                        let v = row[k];
-                        if (typeof v === 'string') v = v.trim();
-                        if (v === null || v === undefined || v === '' || v === '0' || v === 0 ||
-                            v === '---' || v === '0.000' || v === 0.000 || v === '00:00:00.0' ||
-                            v === '0:00.0' || v === '0.0') return false;
-                        const num = Number(v);
-                        if (isNaN(num)) return true;
-                        return Math.abs(num) > 1e-8;
-                    });
-                });
-
-                // Column ordering
-                const strokeKey = 'Stroke';
-                const infoOrder = [
-                    'Elapsed Time (HH:MM:SS.tenths)',
-                    'Distance (GPS) (Meters)',
-                    'Split (GPS) (/500)',
-                    'Speed (GPS) (M/S)',
-                    'Distance/Stroke (GPS) (Meters)',
-                    'Stroke Rate (SPM)',
-                    'Heart Rate (BPM)'
-                ];
-
-                allKeys = allKeys.filter(k => !infoOrder.includes(k));
-                const headers = [strokeKey, ...infoOrder.filter(h => data[0][h] !== undefined), ...allKeys];
-
-                // Calculate moving averages for relevant columns
-                const maData = {};
-                headers.slice(1).forEach(key => {
-                    const vals = data.map(row => row[key]).map(v => (typeof v === 'string' ? v.trim() : v));
-                    const isNumeric = vals.some(v => v !== null && v !== undefined && v !== '' && !isNaN(v) && v !== '---');
-                    if (isNumeric) {
-                        const numVals = vals.map(v => (v !== null && v !== undefined && v !== '' && !isNaN(v) && v !== '---') ? Number(v) : null);
-                        maData[key] = utils.movingAverage(numVals, CONFIG.MOVING_AVERAGE_WINDOW);
-                    } else {
-                        maData[key] = vals;
-                    }
-                });
-
-                // Add EWpS if available
-                if (data[0].ewps !== undefined) {
-                    headers.push('EWpS');
-                    maData['EWpS'] = data.map(row => row.ewps);
+                if (!data || !data.length) {
+                    container.innerHTML = '';
+                    return;
                 }
 
-                // Find min/max indices
-                const highlightCols = [
-                    'Stroke Rate (SPM)',
-                    'EWpS',
-                    'Split (GPS) (/500)',
-                    'Speed (GPS) (M/S)',
-                    'Distance/Stroke (GPS) (Meters)'
-                ];
-
-                const minIdx = {}, maxIdx = {};
-                highlightCols.forEach(col => {
-                    if (headers.includes(col) && maData[col]) {
-                        const vals = maData[col].map(v => (v !== null && v !== undefined && v !== '' && !isNaN(v) && v !== '---') ? Number(v) : null);
-                        let min = Infinity, max = -Infinity, minI = -1, maxI = -1;
-                        
-                        // Start from 100m threshold
-                        let startIdx = 0;
-                        if (headers.includes('Distance (GPS) (Meters)') && maData['Distance (GPS) (Meters)']) {
-                            const meters = maData['Distance (GPS) (Meters)'];
-                            startIdx = meters.findIndex(m => m !== null && m >= CONFIG.MIN_DISTANCE_THRESHOLD);
-                            if (startIdx === -1) startIdx = 0;
-                        }
-
-                        for (let i = startIdx; i < vals.length; i++) {
-                            const v = vals[i];
-                            if (v !== null && v < min) { min = v; minI = i; }
-                            if (v !== null && v > max) { max = v; maxI = i; }
-                        }
-                        minIdx[col] = minI;
-                        maxIdx[col] = maxI;
-                    }
+                // Get distance data
+                const metersArr = data.map(row => {
+                    const v = row['Distance (GPS) (Meters)'];
+                    return (!v || v === '---') ? null : parseFloat(v);
                 });
+
+                const maxDistance = Math.max(...metersArr.filter(v => v !== null));
+                
+                // Create 250m intervals
+                const intervals = [];
+                for (let start = 0; start < maxDistance; start += 250) {
+                    const end = Math.min(start + 250, maxDistance);
+                    intervals.push({ start, end, label: `${start}-${Math.round(end)}m` });
+                }
+
+                // Calculate metrics for each interval
+                const intervalData = intervals.map(interval => {
+                    const strokesInInterval = data.filter((row, idx) => {
+                        const distance = metersArr[idx];
+                        return distance !== null && distance >= interval.start && distance < interval.end;
+                    });
+
+                    if (strokesInInterval.length === 0) return null;
+
+                    // Calculate averages for this interval
+                    const getAvg = (key) => {
+                        const values = strokesInInterval.map(row => {
+                            const v = row[key];
+                            return (!v || v === '---') ? null : parseFloat(v);
+                        }).filter(v => v !== null && !isNaN(v));
+                        return values.length > 0 ? values.reduce((a, b) => a + b) / values.length : null;
+                    };
+
+                    const getSplit = () => {
+                        const splitValues = strokesInInterval.map(row => {
+                            const v = row['Split (GPS) (/500)'];
+                            if (!v || v === '---') return null;
+                            
+                            let m = v.match(/^(\d+):(\d+):(\d+\.?\d*)$/);
+                            if (m) return parseInt(m[1]) * 3600 + parseInt(m[2]) * 60 + parseFloat(m[3]);
+                            m = v.match(/^(\d+):(\d+\.?\d*)$/);
+                            if (m) return parseInt(m[1]) * 60 + parseFloat(m[2]);
+                            return null;
+                        }).filter(v => v !== null);
+                        return splitValues.length > 0 ? splitValues.reduce((a, b) => a + b) / splitValues.length : null;
+                    };
+
+                    const splitSec = getSplit();
+                    
+                    return {
+                        interval: interval.label,
+                        strokes: strokesInInterval.length,
+                        elapsed: strokesInInterval.length > 0 ? strokesInInterval[strokesInInterval.length - 1]['Elapsed Time (HH:MM:SS.tenths)'] : '',
+                        split: splitSec ? utils.formatTime(splitSec) : '',
+                        speed: getAvg('Speed (GPS) (M/S)'),
+                        spm: getAvg('Stroke Rate (SPM)'),
+                        length: getAvg('Distance/Stroke (GPS) (Meters)'),
+                        heartRate: getAvg('Heart Rate (BPM)'),
+                        ewps: getAvg('ewps') || (function() {
+                            const speed = getAvg('Speed (GPS) (M/S)');
+                            const spm = getAvg('Stroke Rate (SPM)');
+                            return (speed && spm && spm > 0) ? speed * Math.pow(spm, -1/3) : null;
+                        })()
+                    };
+                }).filter(d => d !== null);
+
+                if (intervalData.length === 0) {
+                    container.innerHTML = '<p style="text-align: center; color: var(--gray-500); padding: 2rem;">Geen data beschikbaar voor 250m intervals</p>';
+                    return;
+                }
+
+                // Find min/max values for highlighting
+                const getMinMaxIdx = (key) => {
+                    let minVal = Infinity, maxVal = -Infinity, minIdx = -1, maxIdx = -1;
+                    intervalData.forEach((d, i) => {
+                        if (d[key] !== null && !isNaN(d[key])) {
+                            if (d[key] < minVal) { minVal = d[key]; minIdx = i; }
+                            if (d[key] > maxVal) { maxVal = d[key]; maxIdx = i; }
+                        }
+                    });
+                    return { minIdx, maxIdx };
+                };
+
+                const speedMinMax = getMinMaxIdx('speed');
+                const spmMinMax = getMinMaxIdx('spm');
+                const lengthMinMax = getMinMaxIdx('length');
+                const ewpsMinMax = getMinMaxIdx('ewps');
 
                 // Generate table HTML
                 let html = `
                     <div class="stroke-table-container">
-                        <h3 style="margin: 0 0 1rem; color: var(--gray-700);">📊 Stroke Detail Analyse</h3>
+                        <h3 style="margin: 0 0 1rem; color: var(--gray-700);">📊 250m Interval Analyse</h3>
                         <table class="stroke-table">
                             <thead>
                                 <tr>
-                                    ${headers.map(h => `<th>${h === 'EWpS' ? 'EWpS' : h}</th>`).join('')}
+                                    <th>Interval</th>
+                                    <th>Halen</th>
+                                    <th>Tijd</th>
+                                    <th>Split /500m</th>
+                                    <th>Snelheid</th>
+                                    <th>SPM</th>
+                                    <th>Haallengte</th>
+                                    <th>EWpS</th>
+                                    ${intervalData.some(d => d.heartRate !== null) ? '<th>Hartslag</th>' : ''}
                                 </tr>
                             </thead>
                             <tbody>
                 `;
 
-                // Generate table rows
-                data.forEach((row, rowIdx) => {
+                intervalData.forEach((d, idx) => {
                     html += '<tr>';
+                    html += `<td style="text-align: left; font-weight: 600;">${d.interval}</td>`;
+                    html += `<td>${d.strokes}</td>`;
+                    html += `<td>${d.elapsed}</td>`;
+                    html += `<td>${d.split}</td>`;
                     
-                    const isMinOrMax = headers.slice(1).some(key => minIdx[key] === rowIdx || maxIdx[key] === rowIdx);
-                    const strokeStyle = isMinOrMax ? 'highlight-row-value' : '';
-                    html += `<td class="${strokeStyle}">${rowIdx + 1}</td>`;
-
-                    headers.slice(1).forEach(key => {
-                        let val = key === 'EWpS' ? row.ewps : maData[key][rowIdx];
-                        let className = '';
-
-                        // Format time values
-                        if (key === 'Elapsed Time (HH:MM:SS.tenths)' || key === 'Split (GPS) (/500)') {
-                            if (typeof val === 'string') {
-                                val = val.replace(/\b0+(\d)/g, '$1').replace(/^(0+:)+/, '');
-                                if (/^(:?0+\.?0*)+$/.test(val)) val = '0.0';
-                            }
-                        }
-
-                        // Format numbers
-                        if (val !== null && val !== undefined && val !== '' && !isNaN(val) && val !== '---') {
-                            const num = Number(val);
-                            if (key === 'EWpS') val = num.toFixed(3);
-                            else if (key === 'Stroke Rate (SPM)') val = num.toFixed(1);
-                            else if (Math.abs(num) >= 10) val = num.toFixed(2);
-                            else val = num.toFixed(3);
-                        }
-
-                        // Highlight min/max
-                        if (minIdx[key] === rowIdx) className = 'highlight-min';
-                        if (maxIdx[key] === rowIdx) className = 'highlight-max';
-                        
-                        if (isMinOrMax && (key === 'Distance (GPS) (Meters)' || key === 'Elapsed Time (HH:MM:SS.tenths)')) {
-                            className += ' highlight-row-value';
-                        }
-
-                        html += `<td class="${className}">${val !== undefined ? val : ''}</td>`;
-                    });
+                    // Speed with highlighting
+                    let speedClass = '';
+                    if (speedMinMax.minIdx === idx) speedClass = 'highlight-min';
+                    if (speedMinMax.maxIdx === idx) speedClass = 'highlight-max';
+                    html += `<td class="${speedClass}">${d.speed ? d.speed.toFixed(2) : ''}</td>`;
+                    
+                    // SPM with highlighting  
+                    let spmClass = '';
+                    if (spmMinMax.minIdx === idx) spmClass = 'highlight-min';
+                    if (spmMinMax.maxIdx === idx) spmClass = 'highlight-max';
+                    html += `<td class="${spmClass}">${d.spm ? d.spm.toFixed(1) : ''}</td>`;
+                    
+                    // Length with highlighting
+                    let lengthClass = '';
+                    if (lengthMinMax.minIdx === idx) lengthClass = 'highlight-min';
+                    if (lengthMinMax.maxIdx === idx) lengthClass = 'highlight-max';
+                    html += `<td class="${lengthClass}">${d.length ? d.length.toFixed(2) : ''}</td>`;
+                    
+                    // EWpS with highlighting
+                    let ewpsClass = '';
+                    if (ewpsMinMax.minIdx === idx) ewpsClass = 'highlight-min';
+                    if (ewpsMinMax.maxIdx === idx) ewpsClass = 'highlight-max';
+                    html += `<td class="${ewpsClass}">${d.ewps ? d.ewps.toFixed(3) : ''}</td>`;
+                    
+                    // Heart rate if available
+                    if (intervalData.some(d => d.heartRate !== null)) {
+                        html += `<td>${d.heartRate ? d.heartRate.toFixed(0) : ''}</td>`;
+                    }
+                    
                     html += '</tr>';
                 });
 
@@ -1340,7 +1385,7 @@
                 `;
 
                 container.innerHTML = html;
-            }
+            },
         };
 
         // File handling - simplified for single CSV
@@ -1367,7 +1412,7 @@
                 currentAnalysis = analysis;
                 
                 ui.renderStatistics(analysis);
-                ui.renderStrokeTable(data);
+                ui.render250mTable(data);
                 ui.showResults();
                 
             } catch (error) {
@@ -1402,23 +1447,35 @@
             
             markdown += `## ⚙️ Technische Analyse\n\n`;
             if (analysis.metrics.Bootsnelheid) {
-                markdown += `**Bootsnelheid:** ${analysis.metrics.Bootsnelheid.mean.toFixed(2)} m/s\n`;
+                markdown += `**Bootsnelheid:** ${analysis.metrics.Bootsnelheid.mean.toFixed(2)} m/s`;
+                if (analysis.metrics.Bootsnelheid.sd) markdown += ` (±${analysis.metrics.Bootsnelheid.sd.toFixed(2)})`;
+                markdown += '\n';
             }
             
             if (analysis.metrics.SPM) {
-                markdown += `**Slagtempo:** ${analysis.metrics.SPM.mean.toFixed(1)} spm\n`;
+                markdown += `**Slagtempo:** ${analysis.metrics.SPM.mean.toFixed(1)} spm`;
+                if (analysis.metrics.SPM.sd) markdown += ` (±${analysis.metrics.SPM.sd.toFixed(1)})`;
+                markdown += '\n';
             }
             
             if (analysis.metrics.Haallengte) {
-                markdown += `**Haallengte:** ${analysis.metrics.Haallengte.mean.toFixed(2)} m\n`;
+                markdown += `**Haallengte:** ${analysis.metrics.Haallengte.mean.toFixed(2)} m`;
+                if (analysis.metrics.Haallengte.sd) markdown += ` (±${analysis.metrics.Haallengte.sd.toFixed(2)})`;
+                markdown += '\n';
             }
             
             if (analysis.metrics.EWpS) {
-                markdown += `**Efficiëntie (EWpS):** ${analysis.metrics.EWpS.mean.toFixed(3)}\n`;
+                markdown += `**Efficiëntie (EWpS):** ${analysis.metrics.EWpS.mean.toFixed(3)}`;
+                if (analysis.metrics.EWpS.sd) markdown += ` (±${analysis.metrics.EWpS.sd.toFixed(3)})`;
+                markdown += '\n';
             }
             
             if (analysis.maxSpeedInfo) {
                 markdown += `**Max snelheid:** ${analysis.maxSpeedInfo.speed.toFixed(2)} m/s @ ${analysis.maxSpeedInfo.distance}m\n`;
+            }
+            
+            if (analysis.minSpeedInfo) {
+                markdown += `**Min snelheid:** ${analysis.minSpeedInfo.speed.toFixed(2)} m/s @ ${analysis.minSpeedInfo.distance}m\n`;
             }
             
             if (analysis.quarterPercentages) {
@@ -1428,7 +1485,9 @@
             
             if (analysis.metrics.Hartslag) {
                 markdown += `\n## ❤️ Fysiologie\n\n`;
-                markdown += `**Hartslag:** ${analysis.metrics.Hartslag.mean.toFixed(0)} bpm\n`;
+                markdown += `**Hartslag:** ${analysis.metrics.Hartslag.mean.toFixed(0)} bpm`;
+                if (analysis.metrics.Hartslag.sd) markdown += ` (±${analysis.metrics.Hartslag.sd.toFixed(0)})`;
+                markdown += '\n';
             }
             
             if (analysis.locationInfo) {
