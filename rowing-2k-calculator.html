@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2000m Roei Tijd Calculator</title>
+    <style>
+        :root {
+            --primary: #1e40af;
+            --secondary: #ea580c;
+            --success: #059669;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 1rem;
+            background: linear-gradient(135deg, var(--gray-50) 0%, var(--gray-100) 100%);
+            color: var(--gray-800);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 480px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: var(--shadow-lg);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, #3b82f6 100%);
+            color: white;
+            padding: 2rem 1.5rem 1.5rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0 0 0.5rem;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 0.9rem;
+        }
+
+        .input-section {
+            padding: 2rem 1.5rem;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .input-label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--gray-700);
+            margin-bottom: 0.5rem;
+        }
+
+        .time-input-container {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .time-input {
+            width: 60px;
+            padding: 0.75rem;
+            border: 2px solid var(--gray-300);
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .time-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
+        }
+
+        .time-separator {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--gray-400);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-block;
+            text-decoration: none;
+            width: 100%;
+        }
+
+        .btn:hover {
+            background: #1e3a8a;
+            transform: translateY(-1px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: var(--gray-400);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            padding: 1.5rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .result-card {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid var(--primary);
+        }
+
+        .result-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .result-time {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .splits-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .split-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+            border: 1px solid var(--gray-200);
+        }
+
+        .split-label {
+            font-size: 0.8rem;
+            color: var(--gray-500);
+            margin-bottom: 0.25rem;
+        }
+
+        .split-time {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .split-percentage {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            margin-top: 0.25rem;
+        }
+
+        .info-section {
+            background: var(--gray-50);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 1.5rem;
+            border-left: 4px solid var(--secondary);
+        }
+
+        .info-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .info-text {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+            line-height: 1.5;
+        }
+
+        .performance-indicator {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            margin-top: 0.5rem;
+        }
+
+        .performance-elite {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .performance-competitive {
+            background: #dcfce7;
+            color: #059669;
+        }
+
+        .performance-advanced {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .performance-recreational {
+            background: #fed7aa;
+            color: #ea580c;
+        }
+
+        .performance-beginner {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .methodology-note {
+            padding: 1rem;
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            text-align: center;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 0.5rem;
+            }
+            
+            .container {
+                border-radius: 0;
+                margin: 0 -0.5rem;
+            }
+            
+            .header {
+                padding: 1.5rem 1rem 1rem;
+            }
+            
+            .input-section,
+            .results {
+                padding: 1.5rem 1rem;
+            }
+        }
+
+        .error-message {
+            color: var(--danger);
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚣‍♀️ 2000m Tijd Calculator</h1>
+            <p>Voorspel je 2K tijd op basis van je 500m test</p>
+        </div>
+
+        <div class="input-section">
+            <div class="input-group">
+                <label class="input-label">Voer je 500m test tijd in:</label>
+                <div class="time-input-container">
+                    <input type="number" 
+                           id="minutes" 
+                           class="time-input" 
+                           placeholder="1" 
+                           min="0" 
+                           max="9"
+                           value="1">
+                    <span class="time-separator">:</span>
+                    <input type="number" 
+                           id="seconds" 
+                           class="time-input" 
+                           placeholder="30" 
+                           min="0" 
+                           max="59"
+                           step="0.1"
+                           value="30">
+                </div>
+                <div class="error-message" id="error-message">
+                    Voer een geldige tijd in (bv. 1:30)
+                </div>
+            </div>
+            
+            <button class="btn" id="calculate-btn">Bereken 2000m Tijd</button>
+        </div>
+
+        <div class="results hidden" id="results">
+            <div class="result-card">
+                <div class="result-title">
+                    <span style="font-size: 1.2rem;">🎯</span>
+                    Voorspelde 2000m Tijd
+                </div>
+                <div class="result-time" id="predicted-time">-</div>
+                <div class="performance-indicator" id="performance-level">-</div>
+            </div>
+
+            <div class="splits-container">
+                <div class="split-card">
+                    <div class="split-label">1e 500m</div>
+                    <div class="split-time" id="split-1">-</div>
+                    <div class="split-percentage">108% van test</div>
+                </div>
+                <div class="split-card">
+                    <div class="split-label">2e 500m</div>
+                    <div class="split-time" id="split-2">-</div>
+                    <div class="split-percentage">113% van test</div>
+                </div>
+                <div class="split-card">
+                    <div class="split-label">3e 500m</div>
+                    <div class="split-time" id="split-3">-</div>
+                    <div class="split-percentage">113% van test</div>
+                </div>
+                <div class="split-card">
+                    <div class="split-label">4e 500m</div>
+                    <div class="split-time" id="split-4">-</div>
+                    <div class="split-percentage">110% van test</div>
+                </div>
+            </div>
+
+            <div class="info-section">
+                <div class="info-title">
+                    <span>💡</span>
+                    Race Strategie Advies
+                </div>
+                <div class="info-text">
+                    <strong>Start (eerste 10-15 slagen):</strong> Explosief maar gecontroleerd<br>
+                    <strong>1e 500m:</strong> Snel maar niet maximaal (92% van max snelheid)<br>
+                    <strong>2e & 3e 500m:</strong> Steady pace vasthouden (88% snelheid)<br>
+                    <strong>Laatste 500m:</strong> Progressief versnellen naar de finish<br><br>
+                    <em>Let op: Deze voorspelling gaat uit van optimale pacing. Te snel starten leidt vaak tot een langzamere eindtijd!</em>
+                </div>
+            </div>
+        </div>
+
+        <div class="methodology-note">
+            Gebaseerd op de French Rowing Federation 2000m Race Strategy
+        </div>
+    </div>
+
+    <script>
+        // Utility functions
+        function timeToSeconds(minutes, seconds) {
+            return minutes * 60 + seconds;
+        }
+
+        function secondsToTime(totalSeconds) {
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = (totalSeconds % 60).toFixed(1);
+            return `${minutes}:${seconds.padStart(4, '0')}`;
+        }
+
+        function getPerformanceLevel(totalSeconds) {
+            if (totalSeconds < 400) { // < 6:40
+                return { class: 'performance-elite', text: 'Elite niveau' };
+            } else if (totalSeconds < 440) { // < 7:20
+                return { class: 'performance-competitive', text: 'Competitief niveau' };
+            } else if (totalSeconds < 500) { // < 8:20
+                return { class: 'performance-advanced', text: 'Gevorderd niveau' };
+            } else if (totalSeconds < 560) { // < 9:20
+                return { class: 'performance-recreational', text: 'Recreatief niveau' };
+            } else {
+                return { class: 'performance-beginner', text: 'Beginnend niveau' };
+            }
+        }
+
+        function calculate2000mTime() {
+            const minutesInput = document.getElementById('minutes');
+            const secondsInput = document.getElementById('seconds');
+            const errorMessage = document.getElementById('error-message');
+            
+            // Get values
+            const minutes = parseInt(minutesInput.value) || 0;
+            const seconds = parseFloat(secondsInput.value) || 0;
+            
+            // Validation
+            if (minutes < 0 || minutes > 9 || seconds < 0 || seconds >= 60) {
+                errorMessage.style.display = 'block';
+                return;
+            }
+            
+            if (minutes === 0 && seconds === 0) {
+                errorMessage.style.display = 'block';
+                return;
+            }
+            
+            errorMessage.style.display = 'none';
+            
+            // Calculate based on French Rowing Federation percentages
+            const testTimeSeconds = timeToSeconds(minutes, seconds);
+            
+            // Percentage factors (from time perspective, not speed)
+            const split1 = testTimeSeconds * 1.08;  // 108% of test time
+            const split2 = testTimeSeconds * 1.13;  // 113% of test time
+            const split3 = testTimeSeconds * 1.13;  // 113% of test time
+            const split4 = testTimeSeconds * 1.10;  // 110% of test time
+            
+            const totalSeconds = split1 + split2 + split3 + split4;
+            
+            // Update UI
+            document.getElementById('predicted-time').textContent = secondsToTime(totalSeconds);
+            document.getElementById('split-1').textContent = secondsToTime(split1);
+            document.getElementById('split-2').textContent = secondsToTime(split2);
+            document.getElementById('split-3').textContent = secondsToTime(split3);
+            document.getElementById('split-4').textContent = secondsToTime(split4);
+            
+            // Performance level
+            const performance = getPerformanceLevel(totalSeconds);
+            const performanceElement = document.getElementById('performance-level');
+            performanceElement.textContent = performance.text;
+            performanceElement.className = 'performance-indicator ' + performance.class;
+            
+            // Show results
+            document.getElementById('results').classList.remove('hidden');
+        }
+
+        // Event listeners
+        document.getElementById('calculate-btn').addEventListener('click', calculate2000mTime);
+        
+        // Enter key support
+        document.getElementById('minutes').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') calculate2000mTime();
+        });
+        
+        document.getElementById('seconds').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') calculate2000mTime();
+        });
+        
+        // Auto-focus on load
+        document.getElementById('minutes').focus();
+        
+        // Calculate with default values on load
+        calculate2000mTime();
+    </script>
+</body>
+</html>
